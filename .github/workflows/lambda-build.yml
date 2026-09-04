@@ -24,14 +24,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
       - name: Install pinned Rust toolchain
         run: rustup toolchain install 1.97.0 --profile minimal --component clippy,rustfmt
       - name: Format
         run: cargo +1.97.0 fmt --manifest-path src/lambdas/Cargo.toml --all -- --check
       - name: Clippy
-        run: cargo +1.97.0 clippy --manifest-path src/lambdas/Cargo.toml --all-targets --all-features -- -D warnings
+        run: cargo +1.97.0 clippy --locked --manifest-path src/lambdas/Cargo.toml --all-targets --all-features -- -D warnings
       - name: Test
-        run: cargo +1.97.0 test --manifest-path src/lambdas/Cargo.toml --all-targets
+        run: cargo +1.97.0 test --locked --manifest-path src/lambdas/Cargo.toml --all-targets
 
   package:
     needs: quality
@@ -51,6 +53,8 @@ jobs:
           - hhm-roster-export
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
         with:
           platforms: arm64
@@ -59,7 +63,6 @@ jobs:
       - name: Build single-file Lambda artifact
         run: |
           set -euo pipefail
-          rm -rf dist package
           docker buildx build \
             --file src/lambdas/Dockerfile \
             --platform "linux/${{ matrix.architecture.platform }}" \

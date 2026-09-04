@@ -11,7 +11,7 @@ ENV RUSTFLAGS="-C debuginfo=0 --remap-path-prefix=/work=."
 WORKDIR /work
 RUN apk add --no-cache build-base file git
 
-COPY Cargo.toml ./
+COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 
 RUN set -eu; \
@@ -20,7 +20,7 @@ RUN set -eu; \
       *) echo "unsupported TARGETARCH=${TARGETARCH}; expected amd64 or arm64" >&2; exit 64 ;; \
     esac; \
     test -n "${LAMBDA_BIN}"; \
-    cargo build --release --bin "${LAMBDA_BIN}"; \
+    cargo build --locked --release --bin "${LAMBDA_BIN}"; \
     file "target/release/${LAMBDA_BIN}" | tee /tmp/lambda-file.txt; \
     grep -Eq 'statically linked|static-pie linked' /tmp/lambda-file.txt; \
     install -D -m 0555 "target/release/${LAMBDA_BIN}" /out/bootstrap; \
