@@ -58,8 +58,20 @@ async fn health() -> impl IntoResponse {
     axum::Json(serde_json::json!({"status":"ok","ui":"leptos-ssr"}))
 }
 
+const MAX_WS_TEXT_BYTES: usize = 4096;
+
 async fn ws(upgrade: WebSocketUpgrade) -> impl IntoResponse {
-    upgrade.on_upgrade(handle_ws)
+    upgrade
+        .max_message_size(MAX_WS_TEXT_BYTES)
+        .max_frame_size(MAX_WS_TEXT_BYTES)
+        .on_upgrade(handle_ws)
+}
+
+fn bounded_ack(text: &str) -> Option<String> {
+    text.len()
+        .checked_add("ack:".len())
+        .filter(|length| *length <= MAX_WS_TEXT_BYTES)
+        .map(|_| format!("ack:{text}"))
 }
 
 async fn handle_ws(mut socket: WebSocket) {
@@ -72,12 +84,29 @@ async fn handle_ws(mut socket: WebSocket) {
     while let Some(Ok(message)) = socket.next().await {
         match message {
             Message::Text(text) => {
-                let _ = socket
-                    .send(Message::Text(format!("ack:{text}").into()))
-                    .await;
+                let Some(reply) = bounded_ack(&text) else {
+                    break;
+                };
+                if socket.send(Message::Text(reply.into())).await.is_err() {
+                    break;
+                }
             }
             Message::Close(_) => break,
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn websocket_ack_is_bounded_in_utf8_bytes() {
+        assert_eq!(bounded_ack("hello"), Some("ack:hello".to_string()));
+        assert!(bounded_ack(&"x".repeat(MAX_WS_TEXT_BYTES - 4)).is_some());
+        assert!(bounded_ack(&"x".repeat(MAX_WS_TEXT_BYTES - 3)).is_none());
+        assert!(bounded_ack(&"é".repeat((MAX_WS_TEXT_BYTES - 4) / 2)).is_some());
+        assert!(bounded_ack(&"é".repeat((MAX_WS_TEXT_BYTES / 2) + 1)).is_none());
     }
 }
