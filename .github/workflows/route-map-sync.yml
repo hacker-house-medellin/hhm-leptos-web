@@ -12,15 +12,16 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          persist-credentials: false
           repository: hacker-house-medellin/hhm-lib-core
-          path: ../hhm-lib-core
+          path: hhm-lib-core
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       # No pip install: the checker and generator are standard library only, so
       # CI and a developer laptop cannot reach different verdicts.
       - name: Validate the route maps and the generated clients
-        run: python3 scripts/check-route-sync.py --root .
+        run: python3 scripts/check-route-sync.py --root . --map hhm-lib-core/route-maps/leptos.route-map.json
